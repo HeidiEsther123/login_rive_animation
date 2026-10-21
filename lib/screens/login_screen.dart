@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
+import 'dart:async'; //3.1 importar timer
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +22,32 @@ SMITrigger? _trigSuccess;
 SMITrigger? _trigFail;
 SMINumber? _numLook;
 
+//3.2 Timer para detener la mirada al dejar de escribir 
+Timer? _typingDebounce;
+
+//Crear variables para focusNode
+final _emailFocusNode = FocusNode();
+final _passwordFocusNode = FocusNode();
+
+//2.2 Crear los listenses(Oyentes/Chismosos)
+@override
+void initState() {
+  super.initState();
+  _emailFocusNode.addListener((){
+    if (_emailFocusNode.hasFocus) {
+      // El campo de correo electrónico tiene el foco
+      if (_isHandsUp != null) {
+        //ojos sin cerrar en email
+        _isHandsUp!.change(false);
+        _numLook?.value = 50; // Mira neutral
+      }
+    }
+  });
+  _passwordFocusNode.addListener((){ 
+    //manos arriba en password
+    _isHandsUp?.change(_passwordFocusNode.hasFocus);
+  });
+}
   @override
   Widget build(BuildContext context) {
     // Obtiene el tamaño de la pantalla
@@ -64,14 +91,31 @@ SMINumber? _numLook;
                 SizedBox(height: 10),
                 // texfield es para elegir el tipo de teclado
                 TextField(
+                  //2.3 Asignar el foco al campo de texto
+                  focusNode: _emailFocusNode,
+                  //1.5 Vincular a campos de texto
                   onChanged: (value) {
                     //1.5 Cambiar el valor de la variable de la máquina de estados
                     if(_isHandsUp != null) {
-                      _isHandsUp!.change(false);
+                      // No tapes los ojos cuando escribas en el correo electrónico
+                     // _isHandsUp!.change(false);
                     }
 
                     if(_isChecking == null) return;
                     _isChecking!.change(true);
+                    //3.4 Implementar numLook 
+                    // Ajustes del 0 al 100
+                    // 80 es medida de calibración. Clam es el rango (abrazadera) esto es de examen
+                    final look = (value.length /80.0 *100).clamp(0.0, 100.0);
+                    _numLook?.value = look;
+                    //3.5 Debounce: si vuelve a teclear, reinicia el cotador 
+                    _typingDebounce?.cancel();
+                    //crear nuevo timer
+                    _typingDebounce = Timer(const Duration(seconds: 3), (){
+                      // Si se cierra la pantalla(!mounted)
+                      if (!mounted) return;
+                      _isChecking?.change(false);
+                    });
                   },
                   //Para mostrar el teclado de correo electrónico
                   keyboardType: TextInputType.emailAddress,
@@ -86,10 +130,13 @@ SMINumber? _numLook;
                 const SizedBox(height: 10),
                 //contraseña
                 TextField(
+                  //2.3 Asignar el foco al campo de texto
+                   focusNode: _passwordFocusNode,
                    onChanged: (value) {
                     //1.5 Cambiar el valor de la variable de la máquina de estados
                     if(_isChecking  != null) {
-                      _isChecking!.change(false);
+                      // no tapes los ojos cuando escribas en la contraseña
+                     // _isChecking!.change(false);
                     }
                     if(_isHandsUp == null) return;
                     _isHandsUp!.change(true);
@@ -119,5 +166,14 @@ SMINumber? _numLook;
         ),
       ),
     );
+  }
+  @override
+  void dispose() {
+    //2.4 Liberar los recursos de los focusNode
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    //3.5 Liberar Timer 
+    _typingDebounce?.cancel();
+    super.dispose();
   }
 }
