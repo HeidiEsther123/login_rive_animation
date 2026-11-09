@@ -29,6 +29,58 @@ Timer? _typingDebounce;
 final _emailFocusNode = FocusNode();
 final _passwordFocusNode = FocusNode();
 
+//4.1 controllers para panipular el texto excrito por el usuario
+final  emailCtrl=TextEditingController();
+final passCtrl=TextEditingController();//pregunta de examen: ¿para que sirve el controller? para manipular el texto escrito por el usuario
+// se puede usar para obtener el texto escrito por el usuario, para limpiar el campo de texto, para establecer un valor inicial, etc.
+//final cvvCtrl=TextEditingController(); 
+
+//4.2 Errores para mostrar en la UI
+String? emailError;
+String? passError;
+
+ // 4.3 Validadores
+  bool isValidEmail(String email) {
+    final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    return re.hasMatch(email);
+  }
+
+  bool isValidPassword(String pass) {
+    // mínimo 8, una mayúscula, una minúscula, un dígito y un especial
+    final re = RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$',
+    );
+    return re.hasMatch(pass);
+  }
+  //4.4 Accion al boton
+  void _onLogin(){
+    //De lo que escribio el usuario, validar si es correcto y quitar los espacios en blanco 
+    final email = emailCtrl.text.trim();
+    final pass = passCtrl.text;
+    // Recalcular los errores
+    final emailTypeError = isValidEmail(email) ? null : 'Email inválido';
+    final passTypeError = isValidPassword(pass) ? null : 'Contraseña inválida';
+
+    //4.5 Avisar que hubo un cambio y mostrarlo en la pantalla 
+    setState(() {
+      emailError = emailTypeError;
+      passError = passTypeError;
+    });
+    //4.6 Cerrar el teclado y bajar las manos
+    FocusScope.of(context).unfocus();
+    _typingDebounce?.cancel();
+    _isHandsUp?.change(false);
+    _isChecking?.change(false);
+    _numLook?.value = 50.0; // Mira neutral
+
+    //4.7 Activar triggers de exito o fracaso
+    if (emailTypeError == null && passTypeError == null) {
+      _trigSuccess?.fire();
+    } else {
+      _trigFail?.fire();
+    }
+  }
+
 //2.2 Crear los listenses(Oyentes/Chismosos)
 @override
 void initState() {
@@ -91,6 +143,8 @@ void initState() {
                 SizedBox(height: 10),
                 // texfield es para elegir el tipo de teclado
                 TextField(
+                  //4.8 vincular el controller al campo de texto
+                  controller: emailCtrl,
                   //2.3 Asignar el foco al campo de texto
                   focusNode: _emailFocusNode,
                   //1.5 Vincular a campos de texto
@@ -120,6 +174,8 @@ void initState() {
                   //Para mostrar el teclado de correo electrónico
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
+                    //4.9 Mostrar el texto de error 
+                    errorText: emailError,
                     hintText: "Email",
                     prefixIcon: Icon(Icons.email),
                     border: OutlineInputBorder(
@@ -130,6 +186,8 @@ void initState() {
                 const SizedBox(height: 10),
                 //contraseña
                 TextField(
+                  //4.8. vincular el controller al campo de texto
+                  controller: passCtrl,
                   //2.3 Asignar el foco al campo de texto
                    focusNode: _passwordFocusNode,
                    onChanged: (value) {
@@ -143,6 +201,8 @@ void initState() {
                   },
                   obscureText: _isObsure,
                   decoration: InputDecoration(
+                    //4.9 Mostrar el texto de error 
+                    errorText: passError,
                     hintText: "Password",
                     prefixIcon: Icon(Icons.lock),
                     suffixIcon: IconButton(
@@ -160,6 +220,53 @@ void initState() {
                     ),
                   ),
                 ),
+
+                SizedBox(height: 10),
+                SizedBox(
+                  width: screenSize.width,
+                  child: const Text(
+                    "Forgot Password?",
+                    textAlign: TextAlign.right,
+                    style: TextStyle(decoration: TextDecoration.underline),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                MaterialButton(
+                  minWidth: screenSize.width,
+                  height: 50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  color: Colors.blue,
+                  textColor: Colors.white,
+                  onPressed: _onLogin,
+                  child: const Text("Login", style: TextStyle(color: Colors.white)),
+                ),
+                //¿no tienes cuenta? creala
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: screenSize.width,
+                  child: Row(
+                    children: [
+                      const Text("Don't have an account?"),
+                      TextButton(
+                        onPressed: () {
+                          // Acción al presionar el botón
+                        },
+                        child: const Text(
+                          "Register",
+                          style: TextStyle(
+                            color: Colors.black,
+                            decoration: TextDecoration.underline,
+                            fontWeight: FontWeight.bold
+                          ),
+                          ),
+                        ),
+                    ],
+                    
+                  ),
+                ),
+
               ],
             ),
           ),
@@ -169,6 +276,9 @@ void initState() {
   }
   @override
   void dispose() {
+    //4.10 Liberar los controllers
+    emailCtrl.dispose();
+    passCtrl.dispose();
     //2.4 Liberar los recursos de los focusNode
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
