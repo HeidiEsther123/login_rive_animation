@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 
-void main() {
+Future<void> main() async {
+  // Enciende el puente nativo antes de usar Firebase
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Conecta la app con tu proyecto de Firebase
+  await Firebase.initializeApp(options: firebaseOptions);
+
   runApp(const MainApp());
 }
 
