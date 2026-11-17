@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 import 'dart:async'; //3.1 importar timer
-
+//5.1 Importar Firebase Auth y la pantalla de productos
+import 'package:firebase_auth/firebase_auth.dart';
+import 'products_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -39,6 +41,9 @@ final passCtrl=TextEditingController();//pregunta de examen: ¿para que sirve el
 String? emailError;
 String? passError;
 
+//5.2 Variable para mostrar el CircularProgressIndicator mientras carga
+bool _isLoading = false;
+
  // 4.3 Validadores
   bool isValidEmail(String email) {
     final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
@@ -52,20 +57,23 @@ String? passError;
     );
     return re.hasMatch(pass);
   }
-  //4.4 Accion al boton
-  void _onLogin(){
-    //De lo que escribio el usuario, validar si es correcto y quitar los espacios en blanco 
+  //4.4 Dar acción al botón
+  //5.3 Convertir _onLogin en asíncrono (Future<void> ... async)
+  Future<void> _onLogin() async {
+    //De lo que escribio el usuario, validar si es correcto y quitar los espacios en blanco
     final email = emailCtrl.text.trim();
     final pass = passCtrl.text;
+
     // Recalcular los errores
     final emailTypeError = isValidEmail(email) ? null : 'Email inválido';
     final passTypeError = isValidPassword(pass) ? null : 'Contraseña inválida';
 
-    //4.5 Avisar que hubo un cambio y mostrarlo en la pantalla 
+    //4.5 Avisar que hubo un cambio y mostrarlo en la pantalla
     setState(() {
       emailError = emailTypeError;
       passError = passTypeError;
     });
+
     //4.6 Cerrar el teclado y bajar las manos
     FocusScope.of(context).unfocus();
     _typingDebounce?.cancel();
@@ -73,11 +81,50 @@ String? passError;
     _isChecking?.change(false);
     _numLook?.value = 50.0; // Mira neutral
 
-    //4.7 Activar triggers de exito o fracaso
-    if (emailTypeError == null && passTypeError == null) {
-      _trigSuccess?.fire();
-    } else {
+    //4.9 (modificado) Si el formato es inválido, activar fallo y detener aquí
+    if (emailTypeError != null || passTypeError != null) {
       _trigFail?.fire();
+      return;
+    }
+
+    //5.4 Activar el CircularProgressIndicator
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      //5.5 Autenticar en Firebase (espera 2 s para ver el loading)
+      await Future.delayed(const Duration(seconds: 2));
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+
+      //5.6 Apagar loading, celebrar y esperar la animación
+      setState(() {
+        _isLoading = false;
+      });
+      _trigSuccess?.fire();
+      await Future.delayed(const Duration(seconds: 2));
+
+      //5.7 Navegar a la pantalla de productos
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProductsScreen()),
+      );
+    } catch (e) {
+      //5.8 Credenciales incorrectas: apagar loading y osito triste
+      setState(() {
+        _isLoading = false;
+      });
+      _trigFail?.fire();
+
+      //Error general, sin marcar un campo específico (lo pide la tarea)
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Credenciales no válidas')),
+      );
     }
   }
 
@@ -231,16 +278,22 @@ void initState() {
                   ),
                 ),
                 const SizedBox(height: 10),
+                                //4.13 Botón de login
                 MaterialButton(
                   minWidth: screenSize.width,
                   height: 50,
+                  color: Colors.pinkAccent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  color: Colors.blue,
-                  textColor: Colors.white,
                   onPressed: _onLogin,
-                  child: const Text("Login", style: TextStyle(color: Colors.white)),
+                  //5.9 Mostrar CircularProgressIndicator si está cargando, o el texto Login
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Login',
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
                 //¿no tienes cuenta? creala
                 const SizedBox(height: 20),
