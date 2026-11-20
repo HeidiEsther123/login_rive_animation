@@ -4,6 +4,7 @@ import 'dart:async'; //3.1 importar timer
 //5.1 Importar Firebase Auth y la pantalla de productos
 import 'package:firebase_auth/firebase_auth.dart';
 import 'products_screen.dart';
+import 'signup_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -59,71 +60,57 @@ bool _isLoading = false;
   }
   //4.4 Dar acción al botón
   //5.3 Convertir _onLogin en asíncrono (Future<void> ... async)
-  Future<void> _onLogin() async {
-    //De lo que escribio el usuario, validar si es correcto y quitar los espacios en blanco
+
+    //4.5 Avisar que hubo un cambio y mostrarlo en la pantalla
+      Future<void> _onLogin() async {
     final email = emailCtrl.text.trim();
     final pass = passCtrl.text;
 
-    // Recalcular los errores
-    final emailTypeError = isValidEmail(email) ? null : 'Email inválido';
-    final passTypeError = isValidPassword(pass) ? null : 'Contraseña inválida';
-
-    //4.5 Avisar que hubo un cambio y mostrarlo en la pantalla
-    setState(() {
-      emailError = emailTypeError;
-      passError = passTypeError;
-    });
-
-    //4.6 Cerrar el teclado y bajar las manos
     FocusScope.of(context).unfocus();
     _typingDebounce?.cancel();
     _isHandsUp?.change(false);
     _isChecking?.change(false);
-    _numLook?.value = 50.0; // Mira neutral
+    _numLook?.value = 50.0;
 
-    //4.9 (modificado) Si el formato es inválido, activar fallo y detener aquí
-    if (emailTypeError != null || passTypeError != null) {
+    // Solo valida que los campos no estén vacíos
+    if (email.isEmpty || pass.isEmpty) {
       _trigFail?.fire();
       return;
     }
 
-    //5.4 Activar el CircularProgressIndicator
     setState(() {
       _isLoading = true;
     });
 
     try {
-      //5.5 Autenticar en Firebase (espera 2 s para ver el loading)
       await Future.delayed(const Duration(seconds: 2));
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: pass,
       );
 
-      //5.6 Apagar loading, celebrar y esperar la animación
+      // A3: flujo de éxito
       setState(() {
         _isLoading = false;
       });
       _trigSuccess?.fire();
       await Future.delayed(const Duration(seconds: 2));
 
-      //5.7 Navegar a la pantalla de productos
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const ProductsScreen()),
       );
     } catch (e) {
-      //5.8 Credenciales incorrectas: apagar loading y osito triste
       setState(() {
         _isLoading = false;
       });
       _trigFail?.fire();
 
-      //Error general, sin marcar un campo específico (lo pide la tarea)
+      // A2: mensaje global único
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Credenciales no válidas')),
+        const SnackBar(content: Text('Credenciales inválidas')),
       );
     }
   }
@@ -222,7 +209,6 @@ void initState() {
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     //4.9 Mostrar el texto de error 
-                    errorText: emailError,
                     hintText: "Email",
                     prefixIcon: Icon(Icons.email),
                     border: OutlineInputBorder(
@@ -249,7 +235,7 @@ void initState() {
                   obscureText: _isObsure,
                   decoration: InputDecoration(
                     //4.9 Mostrar el texto de error 
-                    errorText: passError,
+
                     hintText: "Password",
                     prefixIcon: Icon(Icons.lock),
                     suffixIcon: IconButton(
@@ -305,6 +291,10 @@ void initState() {
                       TextButton(
                         onPressed: () {
                           // Acción al presionar el botón
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SignUpScreen()),
+                          );
                         },
                         child: const Text(
                           "Register",
