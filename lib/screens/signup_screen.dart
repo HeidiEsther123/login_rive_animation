@@ -153,3 +153,4 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 }
+//se me olvido hacer commmit del paso B jeje
